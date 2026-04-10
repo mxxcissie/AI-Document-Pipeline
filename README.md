@@ -18,15 +18,15 @@ It is designed to evolve into a Retrieval-Augmented Generation (RAG) system.
 ## Architecture
 
 ```text
-Client Request
-      ↓
-FastAPI API Layer
-      ↓
-LLM Service Layer (abstraction)
-      ↓
-LLM Provider (Ollama / future cloud API)
-      ↓
-Response
+Client
+  ↓
+FastAPI API
+  ↓
+RAG Service
+  ↓
+FAISS Retrieval + Ollama
+  ↓
+Grounded Response
 ```
 
 ### Document pipeline:
@@ -61,6 +61,18 @@ app/
 │   └── text_chunker.py
 data/
 └── sample_docs/
+```
+
+## Run with Docker
+
+Build image:
+```bash
+docker build -t ai-document-pipeline .
+```
+
+Run container:
+```bash
+docker run --rm -p 8000:8000 --env-file .env ai-document-pipeline
 ```
 
 ## Development Progress
@@ -101,13 +113,20 @@ data/
 - Added `/api/rag-query` endpoint for grounded question answering
 - Returned retrieved sources alongside generated responses
 
-## Improved retrieval quality
+### Improved retrieval quality
 
 - Added structured request schemas for search and RAG endpoints
 - Returned retrieval distance scores from FAISS results
 - Added relevance thresholding to reduce low-quality retrieval matches
 - Improved RAG behavior for unsupported questions by returning empty sources when no relevant context is found
 - Refactored vector store initialization for cleaner startup logic
+
+### Containerize
+
+- Containerized the FastAPI application with Docker
+- Added reproducible local setup for API service
+- Improved project packaging and repository readiness
+- Documented local and container-based run workflows
 
 ## Configuration
 
