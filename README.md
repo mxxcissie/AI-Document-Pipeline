@@ -94,6 +94,13 @@ data/
 - Built semantic search pipeline for document retrieval
 - Added `/api/search` endpoint for querying relevant document chunks
 
+### RAG
+
+- Combined semantic retrieval and LLM generation into a RAG pipeline
+- Built a context assembly step using top retrieved document chunks
+- Added `/api/rag-query` endpoint for grounded question answering
+- Returned retrieved sources alongside generated responses
+
 ## Configuration
 
 Create a .env file:
