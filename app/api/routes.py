@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.llm_factory import get_llm_service
+from app.pipeline.document_loader import load_and_chunk_documents
 
 router = APIRouter()
 
@@ -27,5 +28,17 @@ def query_document(request: QueryRequest):
             "answer": answer
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/documents/chunks")
+def preview_document_chunks():
+    try:
+        chunks = load_and_chunk_documents("data/sample_docs")
+        return {
+            "total_chunks": len(chunks),
+            "chunks": chunks
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

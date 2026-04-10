@@ -1,0 +1,1 @@
+A vector database stores embeddings, which are numerical representations of text or other data. These embeddings make it possible to perform semantic search, where results are matched by meaning rather than exact keyword overlap.

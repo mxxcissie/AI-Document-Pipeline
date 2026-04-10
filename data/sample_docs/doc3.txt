@@ -1,0 +1,1 @@
+FastAPI is a modern Python framework for building APIs. It supports automatic request validation, interactive Swagger documentation, and clear route organization, making it useful for backend services that expose machine learning or AI functionality.
