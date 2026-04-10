@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 
+from app.api.schemas import QueryRequest, SearchRequest, RAGQueryRequest
 from app.services.llm_factory import get_llm_service
 from app.services.rag_service import answer_with_rag
 from app.pipeline.document_loader import load_and_chunk_documents
@@ -10,10 +10,6 @@ from app.vectorstore.embedding_service import embed_query
 router = APIRouter()
 
 llm = get_llm_service()
-
-
-class QueryRequest(BaseModel):
-    question: str
 
 
 @router.get("/health")
@@ -48,10 +44,10 @@ def preview_document_chunks():
 
 
 @router.post("/search")
-def search_documents(request: QueryRequest):
+def search_documents(request: SearchRequest):
     try:
         query_embedding = embed_query(request.question)
-        results = vector_store.search(query_embedding, top_k=3)
+        results = vector_store.search(query_embedding, top_k=request.top_k)
 
         return {
             "query": request.question,
@@ -62,9 +58,9 @@ def search_documents(request: QueryRequest):
 
 
 @router.post("/rag-query")
-def rag_query(request: QueryRequest):
+def rag_query(request: RAGQueryRequest):
     try:
-        result = answer_with_rag(request.question, top_k=3)
+        result = answer_with_rag(request.question, top_k=request.top_k)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

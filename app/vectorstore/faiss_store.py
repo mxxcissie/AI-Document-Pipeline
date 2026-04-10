@@ -14,12 +14,13 @@ class FAISSStore:
 
     def search(self, query_embedding: list[float], top_k: int = 3):
         query_vector = np.array([query_embedding]).astype("float32")
-
         distances, indices = self.index.search(query_vector, top_k)
 
         results = []
-        for idx in indices[0]:
+        for rank, idx in enumerate(indices[0]):
             if idx < len(self.documents):
-                results.append(self.documents[idx])
+                doc = dict(self.documents[idx])
+                doc["score"] = float(distances[0][rank])
+                results.append(doc)
 
         return results

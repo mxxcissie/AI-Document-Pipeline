@@ -41,16 +41,34 @@ Answer:
 """.strip()
 
 
+def filter_relevant_chunks(chunks: list[dict], max_distance: float = 1.5) -> list[dict]:
+    for chunk in chunks:
+        print("Score:", chunk.get("score"))
+
+    return [
+        chunk for chunk in chunks
+        if chunk.get("score", 9999.0) <= max_distance
+    ]
+
+
 def answer_with_rag(question: str, top_k: int = 3) -> dict:
     query_embedding = embed_query(question)
     retrieved_chunks = vector_store.search(query_embedding, top_k=top_k)
+    relevant_chunks = filter_relevant_chunks(retrieved_chunks)
 
-    context = build_context(retrieved_chunks)
+    if not relevant_chunks:
+        return {
+            "question": question,
+            "answer": "I do not have enough information from the provided documents.",
+            "sources": []
+        }
+
+    context = build_context(relevant_chunks)
     prompt = build_rag_prompt(question, context)
     answer = llm.generate(prompt)
 
     return {
         "question": question,
         "answer": answer,
-        "sources": retrieved_chunks
+        "sources": relevant_chunks
     }

@@ -1,6 +1,6 @@
 # AI Document Pipeline
 
-A backend system for semantic document processing and question answering, built with FastAPI and a modular LLM integration layer.
+A backend RAG-based document QA system built with FastAPI, local LLM inference, semantic chunk retrieval, and relevance-filtered FAISS search.
 
 This project demonstrates backend system design for integrating LLM-based services using a clean, extensible architecture that supports both local and cloud-based models.
 
@@ -100,6 +100,14 @@ data/
 - Built a context assembly step using top retrieved document chunks
 - Added `/api/rag-query` endpoint for grounded question answering
 - Returned retrieved sources alongside generated responses
+
+## Improved retrieval quality
+
+- Added structured request schemas for search and RAG endpoints
+- Returned retrieval distance scores from FAISS results
+- Added relevance thresholding to reduce low-quality retrieval matches
+- Improved RAG behavior for unsupported questions by returning empty sources when no relevant context is found
+- Refactored vector store initialization for cleaner startup logic
 
 ## Configuration
 
