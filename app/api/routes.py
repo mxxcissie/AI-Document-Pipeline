@@ -1,7 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from app.services.llm_factory import get_llm_service
 
 router = APIRouter()
+
+llm = get_llm_service()
 
 
 class QueryRequest(BaseModel):
@@ -15,8 +18,14 @@ def health_check():
 
 @router.post("/query")
 def query_document(request: QueryRequest):
-    return {
-        "message": "Query endpoint is working",
-        "question": request.question,
-        "answer": "Placeholder response. LLM integration will be added on Day 2."
-    }
+    try:
+        prompt = f"Answer clearly:\n\n{request.question}"
+        answer = llm.generate(prompt)
+
+        return {
+            "question": request.question,
+            "answer": answer
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
