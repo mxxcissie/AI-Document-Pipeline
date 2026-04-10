@@ -87,6 +87,13 @@ data/
 - Created preprocessing pipeline for documents
 - Added /api/documents/chunks endpoint for preview
 
+### Embedding
+
+- Added embedding generation using sentence-transformers
+- Integrated FAISS vector database for similarity search
+- Built semantic search pipeline for document retrieval
+- Added `/api/search` endpoint for querying relevant document chunks
+
 ## Configuration
 
 Create a .env file:

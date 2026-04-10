@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.llm_factory import get_llm_service
 from app.pipeline.document_loader import load_and_chunk_documents
+from app.vectorstore.build_index import vector_store
+from app.vectorstore.embedding_service import embed_query
 
 router = APIRouter()
 
@@ -40,5 +42,21 @@ def preview_document_chunks():
             "total_chunks": len(chunks),
             "chunks": chunks
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/search")
+def search_documents(request: QueryRequest):
+    try:
+        query_embedding = embed_query(request.question)
+
+        results = vector_store.search(query_embedding, top_k=3)
+
+        return {
+            "query": request.question,
+            "results": results
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
