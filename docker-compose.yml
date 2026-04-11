@@ -1,9 +1,11 @@
 services:
   api:
     build: .
+    container_name: ai-document-pipeline
     ports:
       - "8000:8000"
     env_file:
       - .env.docker
     environment:
       - RUN_ENV=docker
+    restart: unless-stopped

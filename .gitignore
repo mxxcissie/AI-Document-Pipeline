@@ -4,26 +4,30 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Virtual environments
+# Virtual Environments
 venv/
 venv311/
 
-# Environment variables (secrets)
+# Environment Variables (Secrets)
 .env
 .env.*
 !.env.example
 
-# OS files
+# OS
 .DS_Store
+Thumbs.db
 
-# IDE / editor
+# IDE / Editor
 .vscode/
 .idea/
 
 # Logs
 *.log
 
-# Python build
+# Python Build
 build/
 dist/
 *.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/

@@ -4,9 +4,14 @@ from app.services.gemini_service import GeminiService
 
 
 def get_llm_service():
-    if LLM_PROVIDER == "ollama":
-        return OllamaService()
-    if LLM_PROVIDER == "gemini":
-        return GeminiService()
+    provider = (LLM_PROVIDER or "").lower()
 
-    raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+    services = {
+        "ollama": OllamaService,
+        "gemini": GeminiService,
+    }
+
+    if provider not in services:
+        raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
+
+    return services[provider]()

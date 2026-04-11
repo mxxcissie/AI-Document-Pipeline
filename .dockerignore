@@ -1,6 +1,38 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
 .env
+.env.local
+.env.docker
+
+# Git
 .git
+.gitignore
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Tests & Scripts
+tests/
+scripts/
+
+# Cache / Build
+dist/
+build/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/

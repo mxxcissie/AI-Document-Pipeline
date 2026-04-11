@@ -1,11 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
-from app.api.schemas import QueryRequest, SearchRequest, RAGQueryRequest
+from app.models.schemas import QueryRequest, SearchRequest, RAGQueryRequest
 from app.services.llm_factory import get_llm_service
 from app.services.rag_service import answer_with_rag
 from app.pipeline.document_loader import load_and_chunk_documents
-from app.vectorstore.build_index import vector_store
-from app.vectorstore.embedding_service import embed_query
+from app.pipeline.retriever import retrieve_documents
 
 router = APIRouter()
 
@@ -27,34 +26,37 @@ def query_document(request: QueryRequest):
             "question": request.question,
             "answer": answer
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="LLM query failed")
 
 
 @router.get("/documents/chunks")
 def preview_document_chunks():
     try:
         chunks = load_and_chunk_documents("data/sample_docs")
+
         return {
             "total_chunks": len(chunks),
             "chunks": chunks
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to load documents")
 
 
 @router.post("/search")
 def search_documents(request: SearchRequest):
     try:
-        query_embedding = embed_query(request.question)
-        results = vector_store.search(query_embedding, top_k=request.top_k)
+        results = retrieve_documents(request.question, top_k=request.top_k)
 
         return {
             "query": request.question,
             "results": results
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="Search failed")
 
 
 @router.post("/rag-query")
@@ -62,5 +64,6 @@ def rag_query(request: RAGQueryRequest):
     try:
         result = answer_with_rag(request.question, top_k=request.top_k)
         return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="RAG query failed")

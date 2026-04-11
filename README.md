@@ -1,132 +1,176 @@
-# AI Document Pipeline
+# AI Document Pipeline (RAG System)
 
-A backend RAG-based document QA system built with FastAPI, local LLM inference, semantic chunk retrieval, and relevance-filtered FAISS search.
-
-This project demonstrates backend system design for integrating LLM-based services using a clean, extensible architecture that supports both local and cloud-based models.
+A production-style Retrieval-Augmented Generation (RAG) backend system for grounded question answering over custom documents. Built with FastAPI, FAISS, and LLMs (Ollama + Gemini), this system focuses on reliability, modular design, and performance visibility.
 
 ## Overview
 
-This project builds an end-to-end pipeline for:
+This project implements an end-to-end RAG pipeline:
 
-- document ingestion
-- text preprocessing and chunking
-- LLM-based query answering
-- extensible model integration
+- Ingests and preprocesses documents
+- Converts text into embeddings
+- Stores embeddings in a vector database (FAISS)
+- Retrieves relevant context for a query
+- Generates grounded responses using an LLM
 
-It is designed to evolve into a Retrieval-Augmented Generation (RAG) system.
+Unlike simple LLM wrappers, this system reduces hallucination by constraining responses to retrieved document context.
+
+## Live Demo
+https://ai-document-pipeline.onrender.com
 
 ## Architecture
 
 ```text
-Client
-  ↓
-FastAPI API
-  ↓
-RAG Service
-  ↓
-FAISS Retrieval + Ollama
-  ↓
-Grounded Response
+User Query
+   ↓
+FastAPI Endpoint (/api/rag-query)
+   ↓
+Embedding (query → vector)
+   ↓
+Vector Search (FAISS)
+   ↓
+Relevance Filtering
+   ↓
+Context Construction
+   ↓
+LLM (Ollama / Gemini)
+   ↓
+Grounded Answer + Sources + Metrics
 ```
 
 ### Document pipeline:
 
 ```text
-Documents → Load → Clean → Chunk → (Next: Embedding → Retrieval)
+Documents → Load → Clean → Chunk → Embed → Store → Retrieve
 ```
+
+## Features
+
+- Semantic search using vector embeddings
+- Document ingestion and text chunking pipeline
+- Retrieval-Augmented Generation (RAG)
+- Grounded answers with source attribution
+- Multi-provider LLM support (local + cloud)
+- Containerized backend (Docker)
+- Cloud deployment (Render)
+- Built-in latency and retrieval quality metrics
+
+## API Endpoints
+
+- Health Check
+`GET /health`
+
+- RAG Query
+`POST /api/rag-query`
+
+Request:
+```json
+{
+  "question": "What is RAG?",
+  "top_k": 3
+}
+```
+
+Response:
+```json
+{
+  "question": "What is RAG?",
+  "answer": "...",
+  "sources": [...],
+  "metrics": {
+    "retrieval_time_ms": 20.5,
+    "generation_time_ms": 600.2,
+    "total_time_ms": 620.7,
+    "retrieved_chunks": 3,
+    "relevant_chunks": 2
+  }
+}
+```
+
+- Preview Document Chunks
+`GET /api/documents/chunks`
 
 ## Tech Stack
 
 - Backend: FastAPI
+- Vector DB: FAISS
+- Embeddings: sentence-transformers
+- LLM: Ollama (local), Gemini (cloud)
+- Infra: Docker, Render
 - Language: Python
-- LLM Runtime: Ollama
-- API Server: Uvicorn
-- Config Management: python-dotenv
+- Server: Uvicorn
+- Config: python-dotenv
 
 ## Project Structure
 
-```text
-app/
-├── main.py
-├── api/
-│   └── routes.py
-├── core/
-│   └── config.py
-├── services/
-│   ├── llm_service.py
-│   ├── ollama_service.py
-│   └── llm_factory.py
-├── pipeline/
-│   ├── document_loader.py
-│   └── text_chunker.py
-data/
-└── sample_docs/
-```
-
-## Run with Docker
-
-Build image:
 ```bash
-docker build -t ai-document-pipeline .
+project_root/
+├── app/
+│   ├── api/                # FastAPI routes (endpoints)
+│   │   └── routes.py
+│   ├── core/               # Configuration management
+│   │   └── config.py
+│   ├── models/             # Pydantic schemas (request/response)
+│   │   └── schemas.py
+│   ├── pipeline/           # RAG data pipeline
+│   │   ├── document_loader.py
+│   │   ├── text_chunker.py
+│   │   ├── embedder.py
+│   │   └── retriever.py
+│   ├── services/           # Business logic + LLM integration
+│   │   ├── llm_service.py
+│   │   ├── ollama_service.py
+│   │   ├── gemini_service.py
+│   │   ├── llm_factory.py
+│   │   └── rag_service.py
+│   └── main.py             # FastAPI application entrypoint
+├── vectorstore/            # Vector database (FAISS)
+│   ├── build_index.py
+│   ├── embedding_service.py
+│   └── faiss_store.py
+├── data/                   # Sample documents for indexing
+│   └── sample_docs/
+├── scripts/                # Utility & evaluation scripts
+│   ├── evaluate_rag.py
+│   └── inspect_chunks.py
+├── tests/                  # Unit tests
+│   └── test_pipeline.py
+├── .env.example            # Environment variable template
+├── docker-compose.yml      # Multi-container setup
+├── Dockerfile              # Container configuration
+├── requirements.txt        # Python dependencies
+├── pytest.ini              # Pytest configuration
+└── README.md
 ```
 
-Run container:
+### Architecture Overview
+
+The system follows a Retrieval-Augmented Generation (RAG) pipeline:
+
+- Documents are loaded and split into chunks
+- Chunks are embedded using sentence-transformers
+- Embeddings are stored in a FAISS vector index
+- User queries are embedded and matched against stored vectors
+- Relevant context is retrieved and passed to an LLM (Ollama or Gemini)
+- The LLM generates a grounded response based on retrieved context
+
+## How to Run
+
+### Option 1 — Docker (Recommended)
 ```bash
-docker run --rm -p 8000:8000 --env-file .env ai-document-pipeline
+docker compose up --build
 ```
 
-## Development Progress
+Open:
+- http://127.0.0.1:8000/docs
+- http://127.0.0.1:8000/health
 
-### Backend Setup
-
-- Initialized FastAPI backend
-- Created /api/health and /api/query endpoints
-- Set up project structure and routing
-- Added Swagger API documentation
-
-### LLM Integration
-
-- Integrated LLM via Ollama local API
-- Implemented LLM service abstraction layer
-- Added provider-based architecture (llm_factory)
-- Connected /api/query to real model responses
-- Configured environment-based model selection
-
-### Document Pipeline (Ingestion + Chunking)
-
-- Implemented document loader for .txt files
-- Built text chunking with overlap
-- Created preprocessing pipeline for documents
-- Added /api/documents/chunks endpoint for preview
-
-### Embedding
-
-- Added embedding generation using sentence-transformers
-- Integrated FAISS vector database for similarity search
-- Built semantic search pipeline for document retrieval
-- Added `/api/search` endpoint for querying relevant document chunks
-
-### RAG
-
-- Combined semantic retrieval and LLM generation into a RAG pipeline
-- Built a context assembly step using top retrieved document chunks
-- Added `/api/rag-query` endpoint for grounded question answering
-- Returned retrieved sources alongside generated responses
-
-### Improved retrieval quality
-
-- Added structured request schemas for search and RAG endpoints
-- Returned retrieval distance scores from FAISS results
-- Added relevance thresholding to reduce low-quality retrieval matches
-- Improved RAG behavior for unsupported questions by returning empty sources when no relevant context is found
-- Refactored vector store initialization for cleaner startup logic
-
-### Containerize
-
-- Containerized the FastAPI application with Docker
-- Added reproducible local setup for API service
-- Improved project packaging and repository readiness
-- Documented local and container-based run workflows
+### Option 2 — Local Development
+```bash
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
 
 ## Configuration
 
@@ -136,67 +180,88 @@ LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:3b
 
+For cloud deployment:
 
-## How to Run
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-2.5-flash
 
-1. Install dependencies
+## Deployment
+
+Deployed on Render:
+
+https://ai-document-pipeline.onrender.com
+
+Supports environment-based switching between local and cloud LLM providers.
+
+## Evaluation & Metrics
+
+The system is evaluated using curated queries to validate:
+
+- Correct responses for in-scope questions
+- Safe fallback for out-of-scope queries
+- Grounded answers using retrieved context
+
+### Runtime Metrics
+
+Each request includes:
+
+- Retrieval latency
+- Generation latency
+- Total response time
+- Retrieved vs relevant chunk count
+
+### Evaluation Script
+
 ```bash
-pip install -r requirements.txt
+python scripts/evaluate_rag.py
 ```
 
-2. Start Ollama
-```bash
-ollama run qwen2.5:3b
-```
-(Exit after verifying it works — Ollama runs in background.)
+Tests:
 
-3. Start backend
-```bash
-uvicorn app.main:app --reload
-```
-
-4. Open API docs
-http://127.0.0.1:8000/docs
-
-## API Endpoints
-
-Health Check
-`GET /api/health`
-
-Query LLM
-`POST /api/query`
-```json
-{
-  "question": "What is a vector database?"
-}
-```
-
-Preview Document Chunks
-`GET /api/documents/chunks`
+- In-scope queries
+- Out-of-scope handling
+- Response consistency
 
 ## Design Highlights
 
 - Separation of concerns
-    - API layer vs LLM vs pipeline
+    - API layer vs pipeline vs LLM services
 - Provider-agnostic LLM architecture
-    - supports future integration with OpenAI or Google
-- Config-driven design
-    - model and provider controlled via .env
+    - Easily extendable to new providers
+- Config-driven system
+    - Behavior controlled via environment variables
 - Extensible pipeline
-    - ready for embeddings and vector search
+    - Ready for additional data sources and scaling
 
-## Next Steps
+## Scaling Considerations
 
-- Add embeddings for document chunks
-- Integrate vector database (FAISS / Chroma)
-- Implement semantic retrieval (RAG)
-- Add caching and performance optimization
-- Deploy backend service
+- Stateless FastAPI service supports horizontal scaling
+- FAISS can be replaced with managed vector DBs (e.g., Pinecone, Weaviate)
+- LLM abstraction enables distributed or remote inference
+- Suitable for integration into larger microservice architectures
+
+## Future Improvements
+
+- Add Redis caching layer for query optimization
+- Add automated testing and CI/CD pipeline
+- Support PDF and large-scale document ingestion
+- Add frontend interface
+
+## Summary
+
+This project demonstrates:
+
+- End-to-end backend system design
+- Integration of LLMs into production-style services
+- Retrieval-based AI architecture (RAG)
+- Performance measurement and evaluation
+- Cloud deployment and containerization
 
 ## What This Project Demonstrates
 
-- Backend API design using FastAPI
+- Backend API design with FastAPI
 - Service-oriented architecture
-- Integration of LLM systems into production-style backend
-- Data pipeline design (ingestion → preprocessing → chunking)
-- Extensibility for modern AI systems
+- Data pipeline design (ingestion → retrieval → generation)
+- Applied AI system design
+- Production-oriented engineering practices
