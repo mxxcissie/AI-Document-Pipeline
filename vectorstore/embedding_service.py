@@ -1,19 +1,28 @@
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-_model = SentenceTransformer("all-MiniLM-L6-v2")
+_vectorizer = None
+
+
+def get_vectorizer():
+    global _vectorizer
+    if _vectorizer is None:
+        _vectorizer = TfidfVectorizer()
+    return _vectorizer
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    embeddings = _model.encode(texts, normalize_embeddings=True)
-    return embeddings.tolist()
+    vectorizer = get_vectorizer()
+    vectors = vectorizer.fit_transform(texts)
+    return vectors.toarray().tolist()
 
 
 def embed_query(text: str) -> list[float]:
     if not text:
         raise ValueError("Query text cannot be empty")
 
-    embedding = _model.encode([text], normalize_embeddings=True)[0]
-    return embedding.tolist()
+    vectorizer = get_vectorizer()
+    vector = vectorizer.transform([text])
+    return vector.toarray()[0].tolist()
