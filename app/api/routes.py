@@ -24,11 +24,13 @@ def query_document(request: QueryRequest):
 
         return {
             "question": request.question,
-            "answer": answer
+            "answer": answer,
         }
 
-    except Exception:
-        raise HTTPException(status_code=500, detail="LLM query failed")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="LLM query failed") from exc
 
 
 @router.get("/documents/chunks")
@@ -38,11 +40,13 @@ def preview_document_chunks():
 
         return {
             "total_chunks": len(chunks),
-            "chunks": chunks
+            "chunks": chunks,
         }
 
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to load documents")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to load documents") from exc
 
 
 @router.post("/search")
@@ -52,18 +56,21 @@ def search_documents(request: SearchRequest):
 
         return {
             "query": request.question,
-            "results": results
+            "results": results,
         }
 
-    except Exception:
-        raise HTTPException(status_code=500, detail="Search failed")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Search failed") from exc
 
 
 @router.post("/rag-query")
 def rag_query(request: RAGQueryRequest):
     try:
-        result = answer_with_rag(request.question, top_k=request.top_k)
-        return result
+        return answer_with_rag(request.question, top_k=request.top_k)
 
-    except Exception:
-        raise HTTPException(status_code=500, detail="RAG query failed")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="RAG query failed") from exc

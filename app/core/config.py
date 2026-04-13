@@ -21,6 +21,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
+REDIS_URL = os.getenv("REDIS_URL")  # no default
+RAG_CACHE_TTL_SECONDS = int(os.getenv("RAG_CACHE_TTL_SECONDS", "300"))
+
+
 if LLM_PROVIDER == "gemini":
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY is required when using Gemini provider")
@@ -31,3 +35,10 @@ elif LLM_PROVIDER == "ollama":
 
 
 print(f"[CONFIG] Provider: {LLM_PROVIDER}")
+print(f"[CONFIG] Env file: {env_file}")
+
+if REDIS_URL:
+    print(f"[CONFIG] Redis URL: {REDIS_URL}")
+    print(f"[CONFIG] RAG cache TTL: {RAG_CACHE_TTL_SECONDS}s")
+else:
+    print("[CONFIG] Redis disabled (no REDIS_URL provided)")

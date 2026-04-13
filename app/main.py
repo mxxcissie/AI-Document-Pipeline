@@ -1,5 +1,12 @@
+import logging
+
 from fastapi import FastAPI
+
 from app.api.routes import router
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 app = FastAPI(
@@ -14,4 +21,4 @@ app.include_router(router, prefix="/api")
 
 @app.on_event("startup")
 def startup_event():
-    print("[STARTUP] AI Document Pipeline API started successfully.")
+    logger.info("AI Document Pipeline API started successfully.")

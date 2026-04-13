@@ -8,4 +8,11 @@ services:
       - .env.docker
     environment:
       - RUN_ENV=docker
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: ai-redis
     restart: unless-stopped

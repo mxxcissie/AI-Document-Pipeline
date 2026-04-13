@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
 from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class BaseQueryRequest(BaseModel):
@@ -15,11 +16,13 @@ class SearchRequest(BaseQueryRequest):
 
 
 class RAGQueryRequest(BaseQueryRequest):
-    top_k: int = Field(3, ge=1, le=10)
+    top_k: int = Field(3, ge=1, le=10, description="Number of chunks to retrieve")
 
 
 class Source(BaseModel):
-    content: str
+    source: str
+    chunk_id: int | str
+    text: str
     score: Optional[float] = None
 
 
@@ -29,6 +32,7 @@ class Metrics(BaseModel):
     total_time_ms: float
     retrieved_chunks: int
     relevant_chunks: int
+    cache: Optional[str] = None
 
 
 class RAGResponse(BaseModel):

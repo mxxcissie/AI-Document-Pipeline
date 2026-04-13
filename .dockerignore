@@ -25,9 +25,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Tests & Scripts
+# Tests
 tests/
-scripts/
 
 # Cache / Build
 dist/
