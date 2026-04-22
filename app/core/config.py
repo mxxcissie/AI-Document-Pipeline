@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 
@@ -9,6 +10,8 @@ if os.getenv("RUN_ENV") == "docker":
 
 load_dotenv(env_file)
 
+BASE_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = BASE_DIR / "data" / "sample_docs"
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 

@@ -21,7 +21,7 @@ class RAGQueryRequest(BaseQueryRequest):
 
 class Source(BaseModel):
     source: str
-    chunk_id: int | str
+    chunk_id: str
     text: str
     score: Optional[float] = None
 

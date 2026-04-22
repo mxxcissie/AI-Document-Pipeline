@@ -6,7 +6,6 @@ from app.services.cache import get_cached_rag_response, set_cached_rag_response
 from app.services.llm_factory import get_llm_service
 
 logger = logging.getLogger(__name__)
-llm = get_llm_service()
 
 
 def build_context(chunks: list[dict]) -> str:
@@ -94,6 +93,8 @@ def answer_with_rag(question: str, top_k: int = 3) -> dict:
 
     context = build_context(retrieved_chunks)
     prompt = build_rag_prompt(question, context)
+
+    llm = get_llm_service()
 
     generation_start = time.perf_counter()
     answer = llm.generate(prompt)

@@ -23,8 +23,8 @@ This design mirrors production AI systems by separating retrieval from generatio
 
 ## Key Results
 
-- Reduced repeated query latency from ~2 s to ~2–3 ms using Redis caching  
-- Achieved ~750×–900× speedup for identical queries  
+- Reduced repeated query latency from ~1.6–2.6 s to ~3.7–6.0 ms using Redis caching  
+- Achieved ~300×–670× speedup for identical queries  
 - Built a modular RAG architecture supporting both local and cloud LLM providers  
 
 These results highlight the impact of caching on reducing latency and improving system throughput for repeated queries.
@@ -153,7 +153,8 @@ Response:
   "results": [
     {
       "source": "doc.txt",
-      "chunk_id": 0,
+      "chunk_id": "doc.txt_0",
+      "chunk_index": 0,
       "text": "...",
       "score": 0.42
     }
@@ -181,7 +182,8 @@ Response:
   "sources": [
     {
       "source": "doc.txt",
-      "chunk_id": 0,
+      "chunk_id": "doc.txt_0",
+      "chunk_index": 0,
       "text": "...",
       "score": 0.42
     }
@@ -191,7 +193,7 @@ Response:
     "generation_time_ms": 600.2,
     "total_time_ms": 620.7,
     "retrieved_chunks": 3,
-    "relevant_chunks": 2,
+    "relevant_chunks": 3,
     "cache": "hit"
   }
 }
@@ -208,7 +210,8 @@ Response:
   "chunks": [
     {
       "source": "doc.txt",
-      "chunk_id": 0,
+      "chunk_id": "doc.txt_0",
+      "chunk_index": 0,
       "text": "..."
     }
   ]
@@ -265,7 +268,7 @@ project_root/
 │   ├── evaluate_rag.py
 │   └── inspect_chunks.py
 │
-├── tests/                  # Unit tests
+├── tests/                  # Unit tests with mocked RAG/LLM dependencies
 │   ├── test_pipeline.py
 │   └── test_rag_service.py
 │
@@ -292,9 +295,10 @@ Open:
 ### Option 2 — Local Development
 
 ```bash
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
@@ -342,16 +346,26 @@ Response includes:
 ## Run Tests
 
 ```bash
-pytest -v
+python -m pytest -v
 ```
+
+The test suite uses mocks for RAG and LLM interactions, so it does not require a live Ollama, Gemini, or Redis instance.
 
 ## Configuration
 
-### Create a `.env` file for local development
+### For local development
 
 ```env
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:3b
+```
+
+### For Docker
+
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:3b
 ```
 
@@ -367,12 +381,21 @@ Gemini is used in cloud environments to reduce memory usage by offloading LLM in
 
 ### Optional Redis (Caching)
 
+Local development:
+
 ```env
 REDIS_URL=redis://127.0.0.1:6379/0
 RAG_CACHE_TTL_SECONDS=300
 ```
 
-Caching is optional. If `REDIS_URL` is not provided, the system will automatically fall back to direct RAG execution without caching.
+Docker:
+
+```env
+REDIS_URL=redis://redis:6379/0
+RAG_CACHE_TTL_SECONDS=300
+```
+
+Caching is optional. If `REDIS_URL` is not provided, or Redis is unavailable, the system will automatically fall back to direct RAG execution without caching.
 
 ## Deployment
 
@@ -429,16 +452,25 @@ To improve response efficiency for repeated queries, the system integrates an op
 
 ### Benchmark Results
 
-Measured using `scripts/benchmark_rag.py` with Redis cache cleared before each run:
+Measured using `scripts/benchmark_rag.py`:
 
 ```bash
 python scripts/benchmark_rag.py
 ```
 
-- Cache miss latency: ~1.7–2.2 s
-- Average cache hit latency: ~2.4–2.8 ms
-- Cache hit range: ~1.1–6.3 ms
-- Approximate speedup: **~750×–900× (seconds → milliseconds)**
+The script attempts to clear the benchmark cache key before running:
+
+- First via REDIS_URL if Redis is directly reachable
+- Otherwise via the local Docker Redis container (ai-redis)
+
+If Redis is unavailable, the script still runs and reports the observed cache status of the first request and follow-up requests.
+
+Local cold-cache benchmark results with Redis available:
+
+- First cold-cache request latency: ~1.6–2.6 s
+- Average cached follow-up latency: ~3.7–6.0 ms
+- Cached follow-up range: ~2.3–11.8 ms
+- Approximate speedup: **~300×–670× (seconds → milliseconds)**
 
 These results show that caching eliminates redundant retrieval and LLM generation, reducing response latency from seconds to milliseconds for identical queries and improving overall system throughput.
 

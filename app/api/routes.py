@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.core.config import DATA_DIR
 from app.models.schemas import QueryRequest, SearchRequest, RAGQueryRequest
 from app.services.llm_factory import get_llm_service
 from app.services.rag_service import answer_with_rag
@@ -7,8 +8,6 @@ from app.pipeline.document_loader import load_and_chunk_documents
 from app.pipeline.retriever import retrieve_documents
 
 router = APIRouter()
-
-llm = get_llm_service()
 
 
 @router.get("/health")
@@ -19,6 +18,7 @@ def health_check():
 @router.post("/query")
 def query_document(request: QueryRequest):
     try:
+        llm = get_llm_service()
         prompt = f"Answer clearly:\n\n{request.question}"
         answer = llm.generate(prompt)
 
@@ -36,7 +36,7 @@ def query_document(request: QueryRequest):
 @router.get("/documents/chunks")
 def preview_document_chunks():
     try:
-        chunks = load_and_chunk_documents("data/sample_docs")
+        chunks = load_and_chunk_documents(str(DATA_DIR))
 
         return {
             "total_chunks": len(chunks),

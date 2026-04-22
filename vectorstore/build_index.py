@@ -1,3 +1,4 @@
+from app.core.config import DATA_DIR
 from app.pipeline.document_loader import load_and_chunk_documents
 from vectorstore.embedding_service import embed_texts
 from vectorstore.faiss_store import FAISSStore
@@ -5,7 +6,7 @@ from vectorstore.faiss_store import FAISSStore
 _vector_store = None
 
 
-def build_vector_store(data_dir: str = "data/sample_docs") -> FAISSStore:
+def build_vector_store(data_dir: str = str(DATA_DIR)) -> FAISSStore:
     chunks = load_and_chunk_documents(data_dir)
 
     if not chunks:
