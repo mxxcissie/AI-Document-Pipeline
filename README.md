@@ -1,6 +1,29 @@
 # AI Document Pipeline (RAG System)
 
-A production-style Retrieval-Augmented Generation (RAG) backend system for grounded question answering over custom documents. Built with FastAPI, FAISS, and LLMs (Ollama + Gemini), this system emphasizes modular architecture, reliability, and measurable performance through built-in metrics and caching.
+A production-style Retrieval-Augmented Generation (RAG) backend system for grounded question answering over custom documents. Built with FastAPI, FAISS, and LLMs (Ollama + Gemini), this system emphasizes modular design, performance optimization, and reliability through metrics and caching.
+
+## Key Results
+
+- Identified repeated LLM calls as the primary latency bottleneck (~1.6–2.6 s per query)
+- Introduced Redis caching at the RAG response layer
+- Reduced repeated-query latency to ~3.7–6.0 ms (~300×–670× speedup)
+- Built a modular RAG architecture supporting both local and cloud LLM providers  
+
+These results highlight the impact of caching on reducing latency and improving system throughput for repeated queries.
+
+## System Summary
+
+FastAPI-based RAG backend that retrieves document context using TF-IDF vectorization and FAISS similarity search, then generates grounded responses via LLMs (Ollama/Gemini), with optional Redis caching for low-latency repeated queries.
+
+## Request Flow
+
+1. Client sends a query to `/api/rag-query`
+2. The query is vectorized using TF-IDF
+3. FAISS retrieves the top-k relevant document chunks
+4. Retrieved chunks are filtered and assembled into context
+5. The LLM generates a grounded response using the retrieved context
+6. The response is optionally cached in Redis
+7. The API returns the answer, sources, and performance metrics
 
 ## Overview
 
@@ -10,8 +33,8 @@ The system:
 
 - Ingests and preprocesses documents  
 - Splits text into manageable chunks  
-- Converts text into embeddings  
-- Stores embeddings in a FAISS vector index  
+- Converts text into TF-IDF vectors  
+- Stores vectors in a FAISS index for similarity search  
 - Retrieves relevant context for a query  
 - Generates grounded responses using an LLM (Ollama or Gemini)  
 
@@ -20,14 +43,6 @@ Unlike simple LLM wrappers, this system reduces hallucination by enforcing stric
 The architecture separates retrieval and generation, enabling modular design, improved explainability, and scalable system evolution. It also incorporates optional caching and performance benchmarking to optimize repeated query latency and provide visibility into system efficiency.
 
 This design mirrors production AI systems by separating retrieval from generation, enabling scalable, reliable, and cost-efficient LLM applications.
-
-## Key Results
-
-- Reduced repeated query latency from ~1.6–2.6 s to ~3.7–6.0 ms using Redis caching  
-- Achieved ~300×–670× speedup for identical queries  
-- Built a modular RAG architecture supporting both local and cloud LLM providers  
-
-These results highlight the impact of caching on reducing latency and improving system throughput for repeated queries.
 
 ## Live Demo (Render Deployment)
 
@@ -58,14 +73,34 @@ LLM (Ollama / Gemini)
 Grounded Answer + Sources + Metrics
 ```
 
+### Architecture Diagram
+
+```text
+[Client]
+   ↓
+[FastAPI API Layer]
+   ↓
+[Retriever Service]
+   ↓
+[Vectorization (TF-IDF)]
+   ↓
+[FAISS Index]
+   ↓
+[LLM Service (Ollama / Gemini)]
+   ↓
+[Redis Cache (optional)]
+   ↓
+[Response + Sources + Metrics]
+```
+
 ### Architecture Overview
 
 The system follows a Retrieval-Augmented Generation (RAG) pipeline:
 
 - Documents are loaded and split into chunks
-- Chunks are embedded using a lightweight TF-IDF pipeline for deployment-friendly retrieval
-- Embeddings are stored in a FAISS vector index
-- User queries are embedded and matched against stored vectors
+- Chunks are converted into TF-IDF vectors for lightweight, deployment-friendly retrieval
+- Vectors are stored in a FAISS index for similarity search
+- User queries are vectorized and matched against stored vectors
 - Relevant context is retrieved and passed to an LLM (Ollama or Gemini)
 - The LLM generates a grounded response based on retrieved context
 
@@ -101,6 +136,13 @@ Retrieval at Query Time
 - Built-in performance metrics (latency and retrieval quality)  
 - Optional Redis caching for repeated queries  
 - Benchmarking for cache performance and latency optimization  
+
+## Reliability Features
+
+- Graceful fallback when Redis is unavailable
+- Safe fallback response for out-of-scope queries
+- Error handling for LLM failures
+- Input validation and structured API responses
 
 ## API Endpoints
 
@@ -221,8 +263,8 @@ Response:
 ## Tech Stack
 
 - **Backend:** FastAPI  
-- **Vector Database:** FAISS  
-- **Embeddings:** TF-IDF (lightweight and deployment-friendly)  
+- **Vector Index:** FAISS    
+- **Vectorization:** TF-IDF (lightweight and deployment-friendly)  
 - **LLM Providers:** Ollama (local), Gemini (cloud)  
 - **Caching:** Redis (optional)  
 - **Infrastructure:** Docker, Render  
@@ -474,6 +516,20 @@ Local cold-cache benchmark results with Redis available:
 
 These results show that caching eliminates redundant retrieval and LLM generation, reducing response latency from seconds to milliseconds for identical queries and improving overall system throughput.
 
+## Design Trade-offs
+
+- TF-IDF vs dense embeddings  
+  Chose TF-IDF for lower memory usage, simpler deployment, and lightweight retrieval.
+
+- Local LLM (Ollama) vs cloud LLM (Gemini)  
+  Uses Ollama for local development and Gemini for cloud-friendly deployment on lower-memory infrastructure.
+
+- Redis caching at response level  
+  Reduces repeated-query latency substantially, but introduces cache lifecycle and invalidation considerations.
+
+- FAISS vs managed vector database  
+  Uses FAISS for simplicity and local control, while keeping the architecture flexible enough to migrate to Pinecone or Weaviate later.
+
 ## Design Highlights
 
 - Separation of concerns  
@@ -495,11 +551,18 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 
 ## Scaling Considerations
 
-- Stateless FastAPI service enables horizontal scaling  
-- FAISS can be replaced with managed vector databases (e.g., Pinecone, Weaviate)  
-- LLM abstraction supports distributed or remote inference  
-- Redis caching reduces repeated LLM load and improves throughput for repeated queries  
-- Architecture is suitable for integration into microservice-based systems  
+- Stateless FastAPI service supports horizontal scaling via replicas  
+- FAISS can be replaced with distributed or managed vector databases such as Pinecone or Weaviate  
+- Retrieval and generation can be separated into independent services  
+- Async or background ingestion can support larger document processing workloads  
+- Distributed caching and cache invalidation strategies can be added as traffic grows  
+- LLM abstraction supports remote or distributed inference backends  
+
+## Limitations
+
+- TF-IDF retrieval may underperform on semantic queries compared to dense embeddings
+- FAISS is single-node and not distributed
+- Cache invalidation is not implemented for dynamic document updates
 
 ## Future Improvements
 
@@ -509,20 +572,13 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 - Add CI/CD pipeline for automated testing and deployment  
 - Build a frontend interface for interactive querying  
 
-## Summary
-
-This project demonstrates:
-
-- End-to-end backend system design  
-- Integration of LLMs into production-style services  
-- Retrieval-Augmented Generation (RAG) architecture  
-- Performance measurement and optimization (metrics + caching)  
-- Cloud deployment and containerization  
-
 ## What This Project Demonstrates
 
-- Backend API design with FastAPI  
-- Service-oriented and modular architecture  
-- Data pipeline design (ingestion → retrieval → generation)  
-- Applied AI system design (RAG + LLM integration)  
-- Production-oriented engineering practices (Docker, metrics, caching)  
+- End-to-end backend system design
+- Backend API design with FastAPI
+- Service-oriented, modular architecture
+- Data pipeline design (ingestion → retrieval → generation)
+- Retrieval-Augmented Generation (RAG) system design
+- Integration of LLMs into production-style services
+- Performance measurement and optimization through metrics and caching
+- Production-oriented engineering practices (Docker, cloud deployment, caching)
