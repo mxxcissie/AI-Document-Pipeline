@@ -2,18 +2,31 @@
 
 A production-style Retrieval-Augmented Generation (RAG) backend system for grounded question answering over custom documents. Built with FastAPI, FAISS, and LLMs (Ollama + Gemini), this system emphasizes modular design, performance optimization, and reliability through metrics and caching.
 
+## Why This Project
+
+Built to simulate a production LLM system where latency, cost, and scalability matter, not just model output quality.
+
+Focus areas:
+- Eliminating LLM bottlenecks through caching and system design
+- Designing stateless, horizontally scalable APIs
+- Supporting multiple LLM providers for deployment flexibility
+
 ## Key Results
 
-- Identified repeated LLM calls as the primary latency bottleneck (~1.6–2.6 s per query)
+- Identified LLM inference as the primary latency bottleneck (~1.6–2.6 s)
 - Introduced Redis caching at the RAG response layer
 - Reduced repeated-query latency to ~3.7–6.0 ms (~300×–670× speedup)
-- Built a modular RAG architecture supporting both local and cloud LLM providers  
+- Eliminated redundant LLM calls, improving throughput and reducing inference load
+- Uses a stateless FastAPI API layer compatible with horizontal scaling
+- Designed a modular RAG architecture supporting local and cloud LLMs  
 
-These results highlight the impact of caching on reducing latency and improving system throughput for repeated queries.
+## Live Demo (Render Deployment)
 
-## System Summary
+Try the interactive API via Swagger UI:
 
-FastAPI-based RAG backend that retrieves document context using TF-IDF vectorization and FAISS similarity search, then generates grounded responses via LLMs (Ollama/Gemini), with optional Redis caching for low-latency repeated queries.
+- https://ai-document-pipeline.onrender.com/docs  
+
+*Note: Uses Gemini for cloud inference to reduce memory usage and enable deployment on low-resource instances.*
 
 ## Request Flow
 
@@ -27,29 +40,15 @@ FastAPI-based RAG backend that retrieves document context using TF-IDF vectoriza
 
 ## Overview
 
-This project implements an end-to-end Retrieval-Augmented Generation (RAG) pipeline for grounded question answering over custom documents.
+This project implements a production-style Retrieval-Augmented Generation (RAG) pipeline for grounded question answering over custom documents.
 
-The system:
+The system performs:
 
-- Ingests and preprocesses documents  
-- Splits text into manageable chunks  
-- Converts text into TF-IDF vectors  
-- Stores vectors in a FAISS index for similarity search  
-- Retrieves relevant context for a query  
-- Generates grounded responses using an LLM (Ollama or Gemini)  
+- Document ingestion and chunking  
+- TF-IDF vectorization and FAISS-based retrieval  
+- Context-aware LLM generation (Ollama / Gemini)  
 
-Unlike simple LLM wrappers, this system reduces hallucination by enforcing strict context usage and generating responses only from retrieved document content.
-
-The architecture separates retrieval and generation, enabling modular design, improved explainability, and scalable system evolution. It also incorporates optional caching and performance benchmarking to optimize repeated query latency and provide visibility into system efficiency.
-
-This design mirrors production AI systems by separating retrieval from generation, enabling scalable, reliable, and cost-efficient LLM applications.
-
-## Live Demo (Render Deployment)
-
-Try the interactive API via Swagger UI:
-- https://ai-document-pipeline.onrender.com/docs  
-
-*Note: Uses Gemini in the cloud environment for low-memory deployment.*
+The architecture separates retrieval and generation, enabling scalable, explainable, and reliable AI systems.
 
 ## Architecture
 
@@ -58,7 +57,7 @@ User Query
    ↓
 FastAPI Endpoint (/api/rag-query)
    ↓
-Query Embedding (text → vector)
+TF-IDF Vectorization (text → vector)
    ↓
 Vector Search (FAISS)
    ↓
@@ -117,7 +116,7 @@ Documents
    ↓
 Load → Clean → Chunk
    ↓
-Embedding Generation
+TF-IDF Vectorization
    ↓
 Vector Store (FAISS)
    ↓
@@ -126,16 +125,14 @@ Retrieval at Query Time
 
 ## Features
 
-- Vector-based document retrieval with FAISS  
-- End-to-end document ingestion and text chunking pipeline  
-- Retrieval-Augmented Generation (RAG) for grounded responses  
-- Source attribution for explainability and traceability  
-- Multi-provider LLM support (Ollama for local, Gemini for cloud)  
-- Containerized backend with Docker  
-- Cloud deployment on Render  
-- Built-in performance metrics (latency and retrieval quality)  
-- Optional Redis caching for repeated queries  
-- Benchmarking for cache performance and latency optimization  
+- End-to-end RAG pipeline (ingestion -> retrieval -> generation)  
+- FAISS-based vector similarity search  
+- Source attribution for explainability  
+- Multi-provider LLM support (Ollama, Gemini)  
+- Stateless FastAPI APIs for horizontal scaling  
+- Redis caching for repeated queries  
+- Built-in performance metrics (latency, retrieval quality)  
+- Dockerized deployment on Render  
 
 ## Reliability Features
 
@@ -157,7 +154,7 @@ Response:
 }
 ```
 
-### Basic LLM Query
+### Direct LLM Query (Non-RAG)
 
 `POST /api/query`
 
@@ -274,7 +271,7 @@ Response:
 
 ## Project Structure
 
-```bash
+```text
 project_root/
 ├── app/
 │   ├── api/                # FastAPI routes (endpoints)
@@ -331,6 +328,7 @@ docker compose up --build
 ```
 
 Open:
+
 - http://127.0.0.1:8000/docs
 - http://127.0.0.1:8000/api/health
 
@@ -423,14 +421,14 @@ Gemini is used in cloud environments to reduce memory usage by offloading LLM in
 
 ### Optional Redis (Caching)
 
-Local development:
+#### Local development:
 
 ```env
 REDIS_URL=redis://127.0.0.1:6379/0
 RAG_CACHE_TTL_SECONDS=300
 ```
 
-Docker:
+#### Docker:
 
 ```env
 REDIS_URL=redis://redis:6379/0
@@ -451,7 +449,7 @@ Supports optional Redis caching in both local and cloud environments with gracef
 
 ## Evaluation & Metrics
 
-The system is evaluated using curated queries to validate:
+The system is evaluated using curated test queries to validate retrieval correctness, grounding, and fallback behavior:
 
 - Correct responses for in-scope questions  
 - Safe fallback behavior for out-of-scope queries  
@@ -507,6 +505,8 @@ The script attempts to clear the benchmark cache key before running:
 
 If Redis is unavailable, the script still runs and reports the observed cache status of the first request and follow-up requests.
 
+This introduces a clear cold-path (full RAG execution) vs warm-path (cached response) optimization strategy.
+
 Local cold-cache benchmark results with Redis available:
 
 - First cold-cache request latency: ~1.6–2.6 s
@@ -519,7 +519,7 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 ## Design Trade-offs
 
 - TF-IDF vs dense embeddings  
-  Chose TF-IDF for lower memory usage, simpler deployment, and lightweight retrieval.
+  Chose TF-IDF over dense embeddings for lower memory usage, faster startup, and simpler deployment in constrained environments.
 
 - Local LLM (Ollama) vs cloud LLM (Gemini)  
   Uses Ollama for local development and Gemini for cloud-friendly deployment on lower-memory infrastructure.
@@ -533,21 +533,28 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 ## Design Highlights
 
 - Separation of concerns  
-  - Clear boundaries between API layer, data pipeline, and LLM services  
+  Clear boundaries between API layer, data pipeline, and LLM services
+
 - Provider-agnostic LLM architecture  
-  - Easily extendable to additional providers beyond Ollama and Gemini  
+  Easily extendable to additional providers beyond Ollama and Gemini  
+
 - Config-driven system  
-  - Runtime behavior controlled via environment variables  
+  Runtime behavior controlled via environment variables
+
 - Extensible pipeline  
-  - Designed to support new data sources and scalable ingestion workflows  
-- Lazy loading for embeddings and vector index  
-  - Avoids heavy initialization at startup and enables deployment on low-memory environments  
+  Designed to support new data sources and scalable ingestion workflows 
+
+- Lazy loading for TF-IDF vectorizer and vector index  
+  Avoids heavy initialization at startup and enables deployment on low-memory environments  
+
 - Observability through built-in metrics  
-  - Enables monitoring of retrieval quality and system performance  
+  Enables monitoring of retrieval quality and system performance  
+
 - Modular pipeline design  
-  - Decoupled embedder and retriever components allow flexible experimentation and easy replacement of retrieval strategies  
+  Decoupled embedder and retriever components allow flexible experimentation and easy replacement of retrieval strategies  
+
 - Graceful degradation for caching layer  
-  - System continues to function correctly when Redis is unavailable  
+  System continues to function correctly when Redis is unavailable  
 
 ## Scaling Considerations
 
@@ -560,7 +567,7 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 
 ## Limitations
 
-- TF-IDF retrieval may underperform on semantic queries compared to dense embeddings
+- TF-IDF retrieval may underperform on semantic queries compared to dense embeddings (e.g., sentence transformers)
 - FAISS is single-node and not distributed
 - Cache invalidation is not implemented for dynamic document updates
 
