@@ -24,6 +24,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Generated vector indexes
+data/indexes/
+
 # Python Build
 build/
 dist/

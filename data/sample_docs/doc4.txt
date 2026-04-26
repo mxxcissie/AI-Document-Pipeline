@@ -1,0 +1,3 @@
+Redis is an in-memory data store often used for caching. In a RAG backend, Redis can store full responses for repeated queries so the system avoids repeated retrieval and LLM generation work.
+
+Cache hits improve latency and throughput for identical requests. A practical production design also needs graceful fallback behavior so requests still succeed when Redis is unavailable.

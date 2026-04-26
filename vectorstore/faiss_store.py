@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import faiss
 import numpy as np
 
@@ -9,6 +12,22 @@ class FAISSStore:
 
         self.index = faiss.IndexFlatL2(dimension)
         self.documents: list[dict] = []
+
+    @classmethod
+    def load(cls, index_path: str | Path, metadata_path: str | Path) -> "FAISSStore":
+        index_file = Path(index_path)
+        metadata_file = Path(metadata_path)
+
+        if not index_file.exists():
+            raise FileNotFoundError(f"FAISS index not found: {index_file}")
+        if not metadata_file.exists():
+            raise FileNotFoundError(f"FAISS metadata not found: {metadata_file}")
+
+        index = faiss.read_index(str(index_file))
+        store = cls(dimension=index.d)
+        store.index = index
+        store.documents = json.loads(metadata_file.read_text(encoding="utf-8"))
+        return store
 
     def add(self, embeddings: list[list[float]], docs: list[dict]) -> None:
         if not embeddings:
@@ -43,3 +62,16 @@ class FAISSStore:
             results.append(doc)
 
         return results
+
+    def save(self, index_path: str | Path, metadata_path: str | Path) -> None:
+        index_file = Path(index_path)
+        metadata_file = Path(metadata_path)
+
+        index_file.parent.mkdir(parents=True, exist_ok=True)
+        metadata_file.parent.mkdir(parents=True, exist_ok=True)
+
+        faiss.write_index(self.index, str(index_file))
+        metadata_file.write_text(
+            json.dumps(self.documents, ensure_ascii=True, indent=2),
+            encoding="utf-8",
+        )

@@ -1,0 +1,3 @@
+FAISS is a library for efficient vector similarity search. It is commonly used to index document vectors so a retrieval system can quickly find the nearest matches for a query vector.
+
+FAISS works well for simple local retrieval pipelines, but it is still a single-node library. Larger production systems may replace it with a managed or distributed vector database when scaling requirements grow.

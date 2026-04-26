@@ -1,0 +1,3 @@
+Docker packages an application with its runtime dependencies into a portable container image. For backend services, Docker makes local development and deployment more consistent across environments.
+
+Containerized FastAPI applications are commonly deployed behind managed platforms or container orchestration systems. Configuration is usually injected through environment variables instead of hardcoded values.

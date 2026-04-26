@@ -1,0 +1,14 @@
+[
+  {"question": "What is RAG?", "expected_source": "doc1.txt"},
+  {"question": "Why is chunking important in RAG?", "expected_source": "doc1.txt"},
+  {"question": "What does a vector database store?", "expected_source": "doc2.txt"},
+  {"question": "What kind of search do embeddings support?", "expected_source": "doc2.txt"},
+  {"question": "What does FastAPI help build?", "expected_source": "doc3.txt"},
+  {"question": "What documentation feature does FastAPI provide?", "expected_source": "doc3.txt"},
+  {"question": "Why would a RAG backend use Redis?", "expected_source": "doc4.txt"},
+  {"question": "What should happen if Redis is unavailable?", "expected_source": "doc4.txt"},
+  {"question": "Why is Docker useful for backend deployment?", "expected_source": "doc5.txt"},
+  {"question": "How is configuration typically passed into containers?", "expected_source": "doc5.txt"},
+  {"question": "What is FAISS used for?", "expected_source": "doc6.txt"},
+  {"question": "When might FAISS be replaced in production?", "expected_source": "doc6.txt"}
+]
