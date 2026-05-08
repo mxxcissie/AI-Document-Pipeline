@@ -1,8 +1,8 @@
-# AI Document Pipeline (RAG System)
+# AI Document Pipeline (RAG Backend System)
 
 > Production-style RAG backend that reduced query latency from ~2 s to ~2–3 ms (~447×–684×) using Redis caching to eliminate redundant LLM calls.
 
-A Retrieval-Augmented Generation (RAG) backend for grounded question answering over custom documents, built with FastAPI, FAISS, and multi-provider LLMs (Ollama + Gemini). Focused on performance, scalability, and production-style system design.
+A Retrieval-Augmented Generation (RAG) backend for grounded question answering over custom documents, built with FastAPI, FAISS, and multi-provider LLMs (Ollama + Gemini). Focused on performance, scalability, and production-style system design. The system also includes a lightweight agentic query mode with planner-based tool selection, iterative retrieval, external lookup, and guarded fallback.
 
 ## Key Results
 
@@ -13,6 +13,7 @@ A Retrieval-Augmented Generation (RAG) backend for grounded question answering o
 - Uses a stateless FastAPI API layer compatible with horizontal scaling
 - Designed a modular RAG architecture supporting local and cloud LLMs
 - Designed for production trade-offs (latency vs retrieval quality, local vs cloud inference)
+- Extended the backend with a lightweight agentic query mode featuring planner-based tool selection, iterative retrieval, external lookup, and guarded fallback
 
 ## Why This Project
 
@@ -21,6 +22,7 @@ Built to simulate real-world LLM systems where latency, cost, and scalability ar
 - Eliminates LLM bottlenecks through caching
 - Demonstrates stateless, horizontally scalable API design
 - Explores trade-offs between retrieval quality, latency, and deployment constraints
+- Adds controlled agent orchestration without replacing the core RAG backend
 
 ## Live Demo (Render Deployment)
 
@@ -44,6 +46,14 @@ Standard RAG path (`/api/rag-query`):
 6. The LLM generates a grounded response using the retrieved context
 7. The response is optionally stored in Redis for repeated queries
 8. The API returns the answer, sources, and performance metrics
+
+Agent path (`/api/agent-query`):
+
+1. Client sends a query to `/api/agent-query`
+2. Planner LLM selects the next action
+3. The agent executes retrieval, query refinement, or external lookup
+4. Observations are appended to the step trace
+5. The agent either answers from collected context or falls back to standard RAG
 
 ## Architecture
 
@@ -110,6 +120,19 @@ The vector index, document metadata, and an index manifest can be persisted to d
 
 The project also includes a lightweight agentic mode (`/api/agent-query`) that adds a planner -> tool execution -> observe -> answer loop on top of the existing RAG pipeline. The planner can iteratively retrieve, refine, use external lookup, and answer, while falling back to standard RAG if planning fails.
 
+```text
+Agent Query (/api/agent-query)
+   ↓
+Planner LLM
+   ↓
+Tool Selection
+   ├─ Internal Retrieval (FAISS)
+   ├─ Query Refinement
+   └─ External Lookup
+   ↓
+Final Answer + Step Trace + Metrics
+```
+
 ### Ingestion & Retrieval Pipeline
 
 ```text
@@ -153,6 +176,7 @@ Retrieval at Query Time
 ## Reliability Features
 
 - Graceful fallback when Redis is unavailable
+- Guarded fallback from agent mode to standard RAG when planner/tool execution fails
 - Safe fallback response for out-of-scope queries
 - Error handling for LLM failures
 - Input validation and structured API responses
@@ -331,7 +355,7 @@ Response:
 - **Index Persistence:** On-disk FAISS index + metadata + manifest  
 - **Vectorization:** Configurable retrieval provider (`tfidf` by default, optional `local_dense`)  
 - **LLM Providers:** Ollama (local), Gemini (cloud)  
-- **Agent Tooling:** internal retrieval + optional DuckDuckGo-based external lookup  
+- **Agent Tooling:** Internal retrieval + optional DuckDuckGo-based external lookup  
 - **Caching:** Redis (optional)  
 - **Infrastructure:** Docker, Render  
 - **Language:** Python  
@@ -523,11 +547,17 @@ The test suite uses mocks for RAG and LLM interactions, so it does not require a
 
 ```env
 LLM_PROVIDER=ollama
-EMBEDDING_PROVIDER=local_dense
-LOCAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_PROVIDER=tfidf
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:3b
 WEB_LOOKUP_ENABLED=true
+```
+
+If you want higher-quality local retrieval, switch to `local_dense`:
+
+```env
+EMBEDDING_PROVIDER=local_dense
+LOCAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
 The first `local_dense` run may download the MiniLM model unless it is already cached locally or you provide `LOCAL_EMBEDDING_MODEL_PATH`.
@@ -647,6 +677,8 @@ The script validates:
 - Out-of-scope fallback behavior
 - Response consistency and grounding
 
+Agent behavior is currently validated through dedicated unit tests and manual endpoint smoke tests rather than a separate agent benchmark script.
+
 ### Retrieval Provider Comparison
 
 Compare `tfidf` and `local_dense` retrieval behavior side by side:
@@ -682,7 +714,7 @@ Trade-off summary:
 
 ## Caching & Performance
 
-To improve response efficiency for repeated queries, the system integrates an optional Redis caching layer for RAG responses.
+To improve response efficiency for repeated queries, the system integrates an optional Redis caching layer for standard RAG responses and agent-query responses.
 
 ### Cache Behavior
 
@@ -729,6 +761,9 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 - Local LLM (Ollama) vs cloud LLM (Gemini)  
   Uses Ollama for local development and Gemini for cloud-friendly deployment on lower-memory infrastructure.
 
+- Agentic orchestration vs deterministic RAG  
+  Adds planner flexibility and tool routing, while keeping guarded fallback to standard RAG to control failure modes and operational complexity.
+
 - Redis caching at response level  
   Reduces repeated-query latency substantially, but introduces cache lifecycle and invalidation considerations.
 
@@ -758,6 +793,9 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 - Modular pipeline design  
   Decoupled embedder and retriever components allow flexible experimentation and easy replacement of retrieval strategies  
 
+- Planner-driven tool routing  
+  Supports controlled multi-step execution across retrieval, refinement, and external lookup  
+
 - Graceful degradation for caching layer  
   System continues to function correctly when Redis is unavailable  
 
@@ -775,6 +813,7 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 - TF-IDF retrieval may underperform on semantic queries compared to dense embeddings (e.g., sentence transformers) when the lightweight default provider is used
 - FAISS is single-node and not distributed
 - Cache invalidation is not implemented for dynamic document updates
+- Planner behavior is heuristic and may not always choose the most effective tool path for broader comparison-style questions
 
 ## Future Improvements
 
@@ -783,6 +822,9 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 - Integrate managed vector databases (e.g., Pinecone, Weaviate)  
 - Add CI/CD pipeline for automated testing and deployment  
 - Build a frontend interface for interactive querying  
+- Strengthen planner heuristics and tool selection for broader comparison-style prompts  
+- Improve external lookup quality and source reliability for agentic queries  
+- Add dedicated agent evaluation scenarios and benchmarks  
 
 ## What This Project Demonstrates
 
