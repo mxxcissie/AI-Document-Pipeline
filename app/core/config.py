@@ -30,6 +30,13 @@ LOCAL_EMBEDDING_OFFLINE_ONLY = os.getenv("LOCAL_EMBEDDING_OFFLINE_ONLY", "").str
 }
 EMBEDDING_API_PROVIDER = os.getenv("EMBEDDING_API_PROVIDER", "")
 EMBEDDING_API_MODEL = os.getenv("EMBEDDING_API_MODEL", "")
+WEB_LOOKUP_ENABLED = os.getenv("WEB_LOOKUP_ENABLED", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+WEB_LOOKUP_URL = os.getenv("WEB_LOOKUP_URL", "https://api.duckduckgo.com/")
 
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
@@ -56,6 +63,7 @@ elif LLM_PROVIDER == "ollama":
 print(f"[CONFIG] Provider: {LLM_PROVIDER}")
 print(f"[CONFIG] Env file: {env_file}")
 print(f"[CONFIG] Embedding provider: {EMBEDDING_PROVIDER}")
+print(f"[CONFIG] External lookup enabled: {WEB_LOOKUP_ENABLED}")
 
 if EMBEDDING_PROVIDER == "local_dense":
     source = LOCAL_EMBEDDING_MODEL_PATH or LOCAL_EMBEDDING_MODEL

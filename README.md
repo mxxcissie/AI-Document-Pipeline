@@ -32,6 +32,8 @@ Try the interactive API via Swagger UI:
 
 ## Request Flow
 
+Standard RAG path (`/api/rag-query`):
+
 1. Client sends a query to `/api/rag-query`
 2. Cache lookup (Redis)
    - Cache hit → return the cached response immediately
@@ -106,6 +108,8 @@ An optional Redis caching layer is applied at the RAG response level to eliminat
 
 The vector index, document metadata, and an index manifest can be persisted to disk, allowing the API to reuse a previously built FAISS index and automatically rebuild it when source documents or retrieval settings change.
 
+The project also includes a lightweight agentic mode (`/api/agent-query`) that adds a planner -> tool execution -> observe -> answer loop on top of the existing RAG pipeline. The planner can iteratively retrieve, refine, use external lookup, and answer, while falling back to standard RAG if planning fails.
+
 ### Ingestion & Retrieval Pipeline
 
 ```text
@@ -125,6 +129,7 @@ Retrieval at Query Time
 ### Core Capabilities
 
 - End-to-end RAG pipeline (ingestion -> retrieval -> generation)
+- Lightweight agentic query mode with planner, iterative retrieval, external lookup, and guarded fallback
 - FAISS-based vector similarity search with persisted index loading and stale-index detection
 - Source attribution for explainability
 
@@ -138,6 +143,7 @@ Retrieval at Query Time
 
 - Multi-provider LLM support (Ollama, Gemini)
 - Configurable retrieval providers (TF-IDF default, optional local dense embeddings)
+- Optional external lookup tool for broader agent context
 
 ### Infrastructure
 
@@ -248,6 +254,57 @@ Response:
 }
 ```
 
+### Agent Query (Planner + Tool Execution)
+
+`POST /api/agent-query`
+
+Request:
+```json
+{
+  "question": "Compare Redis and DynamoDB for this system",
+  "top_k": 5,
+  "max_steps": 3
+}
+```
+
+Response:
+```json
+{
+  "question": "Compare Redis and DynamoDB for this system",
+  "answer": "...",
+  "sources": [],
+  "steps": [
+    {
+      "step": 1,
+      "action": "external_lookup",
+      "query": "Redis vs DynamoDB comparison",
+      "reason": "The internal document corpus is likely insufficient for a broader comparison",
+      "observation": "external_lookup returned 1 chunks; top_score=0.0; low_confidence=false"
+    }
+  ],
+  "metrics": {
+    "planner_time_ms": 18.4,
+    "tool_execution_time_ms": 21.7,
+    "retrieval_time_ms": 20.1,
+    "generation_time_ms": 640.5,
+    "total_time_ms": 701.6,
+    "num_steps": 2,
+    "num_tool_calls": 1,
+    "cache": "miss",
+    "fallback_to_rag": false
+  }
+}
+```
+
+The agent can currently choose between:
+
+- internal document retrieval (`retrieve_documents`)
+- query refinement (`refine_query`)
+- optional external lookup for broader context (`external_lookup`)
+- final grounded answer generation (`generate_answer`)
+
+Repeated empty external lookups are stopped early to avoid wasting planner steps before the agent falls back to answer generation.
+
 ### Preview Document Chunks
 
 `GET /api/documents/chunks`
@@ -274,6 +331,7 @@ Response:
 - **Index Persistence:** On-disk FAISS index + metadata + manifest  
 - **Vectorization:** Configurable retrieval provider (`tfidf` by default, optional `local_dense`)  
 - **LLM Providers:** Ollama (local), Gemini (cloud)  
+- **Agent Tooling:** internal retrieval + optional DuckDuckGo-based external lookup  
 - **Caching:** Redis (optional)  
 - **Infrastructure:** Docker, Render  
 - **Language:** Python  
@@ -297,12 +355,14 @@ project_root/
 │   │   ├── embedder.py
 │   │   └── retriever.py
 │   ├── services/           # Business logic and LLM integration
+│   │   ├── agent_service.py
 │   │   ├── cache.py
 │   │   ├── llm_service.py
 │   │   ├── ollama_service.py
 │   │   ├── gemini_service.py
 │   │   ├── llm_factory.py
-│   │   └── rag_service.py
+│   │   ├── rag_service.py
+│   │   └── web_lookup_service.py
 │   └── main.py             # FastAPI application entrypoint
 │
 ├── vectorstore/            # Vector database layer (FAISS)
@@ -427,6 +487,14 @@ curl -X POST "http://127.0.0.1:8000/api/rag-query" \
   -d '{"question":"What is RAG?","top_k":3}'
 ```
 
+### Agent Query
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/agent-query" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"Why use Redis in this system?","top_k":3,"max_steps":3}'
+```
+
 ### Verify Cache Behavior
 
 Run the same query twice:
@@ -459,6 +527,7 @@ EMBEDDING_PROVIDER=local_dense
 LOCAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:3b
+WEB_LOOKUP_ENABLED=true
 ```
 
 The first `local_dense` run may download the MiniLM model unless it is already cached locally or you provide `LOCAL_EMBEDDING_MODEL_PATH`.
@@ -477,6 +546,7 @@ LLM_PROVIDER=ollama
 EMBEDDING_PROVIDER=tfidf
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:3b
+WEB_LOOKUP_ENABLED=true
 ```
 
 ### For cloud deployment
@@ -486,9 +556,19 @@ LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=tfidf
 GEMINI_API_KEY=your_key
 GEMINI_MODEL=gemini-2.5-flash
+WEB_LOOKUP_ENABLED=true
 ```
 
 Gemini is used in cloud environments to reduce memory usage by offloading LLM inference to an external API, enabling deployment on low-memory instances.
+
+### Optional External Lookup Tool
+
+```env
+WEB_LOOKUP_ENABLED=true
+WEB_LOOKUP_URL=https://api.duckduckgo.com/
+```
+
+The agent uses this tool for broader context when the internal document corpus is likely insufficient. If external lookup is disabled or unavailable, the agent continues with internal retrieval and can still fall back to standard RAG.
 
 ### Optional Redis (Caching)
 
@@ -546,6 +626,8 @@ Each API response includes:
 - Total response time  
 - Retrieved vs. relevant chunk count  
 - Cache status (hit/miss) for repeated queries  
+- Planner and tool-execution timings for agentic requests  
+- Agent step count and tool-call count  
 
 These metrics provide visibility into system performance, retrieval quality, and caching effectiveness.
 
@@ -706,6 +788,7 @@ These results show that caching eliminates redundant retrieval and LLM generatio
 
 - Backend and distributed system design for AI applications
 - Production-style RAG system architecture
+- Lightweight agentic orchestration with planning, tool routing, and fallback
 - Performance optimization through caching and latency reduction
 - API design and service modularization
 - LLM integration across local and cloud providers

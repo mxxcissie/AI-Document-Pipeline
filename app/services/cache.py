@@ -29,6 +29,12 @@ def _make_cache_key(question: str, top_k: int) -> str:
     return f"rag:{digest}"
 
 
+def _make_agent_cache_key(question: str, top_k: int, max_steps: int) -> str:
+    raw = f"agent:{question.strip().lower()}::top_k={top_k}::max_steps={max_steps}"
+    digest = sha256(raw.encode("utf-8")).hexdigest()
+    return f"agent:{digest}"
+
+
 def get_cached_rag_response(question: str, top_k: int) -> Optional[dict[str, Any]]:
     if not redis_client:
         return None
@@ -59,3 +65,44 @@ def set_cached_rag_response(question: str, top_k: int, response: dict[str, Any])
         )
     except Exception:
         logger.exception("Failed to write cached RAG response")
+
+
+def get_cached_agent_response(
+    question: str,
+    top_k: int,
+    max_steps: int,
+) -> Optional[dict[str, Any]]:
+    if not redis_client:
+        return None
+
+    key = _make_agent_cache_key(question, top_k, max_steps)
+
+    try:
+        cached = redis_client.get(key)
+        if not cached:
+            return None
+        return json.loads(cached)
+    except Exception:
+        logger.exception("Failed to read cached agent response")
+        return None
+
+
+def set_cached_agent_response(
+    question: str,
+    top_k: int,
+    max_steps: int,
+    response: dict[str, Any],
+) -> None:
+    if not redis_client:
+        return
+
+    key = _make_agent_cache_key(question, top_k, max_steps)
+
+    try:
+        redis_client.setex(
+            key,
+            RAG_CACHE_TTL_SECONDS,
+            json.dumps(response),
+        )
+    except Exception:
+        logger.exception("Failed to write cached agent response")

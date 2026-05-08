@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import DATA_DIR
-from app.models.schemas import QueryRequest, SearchRequest, RAGQueryRequest
+from app.models.schemas import AgentQueryRequest, QueryRequest, SearchRequest, RAGQueryRequest
 from app.services.llm_factory import get_llm_service
+from app.services.agent_service import answer_with_agent
 from app.services.rag_service import answer_with_rag
 from app.pipeline.document_loader import load_and_chunk_documents
 from app.pipeline.retriever import retrieve_documents
@@ -74,3 +75,18 @@ def rag_query(request: RAGQueryRequest):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="RAG query failed") from exc
+
+
+@router.post("/agent-query")
+def agent_query(request: AgentQueryRequest):
+    try:
+        return answer_with_agent(
+            request.question,
+            top_k=request.top_k,
+            max_steps=request.max_steps,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Agent query failed") from exc
